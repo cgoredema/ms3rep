@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<global-property doc:name="Global Property" doc:id="768f819d-0b66-4656-bebb-395364280cfe" name="env" value="DEV" />
+	<configuration-properties doc:name="Configuration properties" doc:id="4860273c-f08a-4552-bbc8-a323ed0ca93c" file="contactsProperties-${env}.yaml" />
+	<db:config name="Contacts_DB_Config" doc:name="Database Config" doc:id="285b221d-caee-4582-a6a9-56395e69ef61" >
+		<db:my-sql-connection host="${contacts.db.hostname}" port="${contacts.db.port}" user="${contacts.db.username}" password="${contacts.db.password}" database="${contacts.db.database}"/>
+	</db:config>
+	<error-handler name="globalError_Handler" doc:id="de2ed551-5a65-4841-9106-84fa414ef5b4" >
+		<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="7018b3c2-726b-41eb-ad84-243f31f6d12f" >
+			<ee:transform doc:name="Transform Message" doc:id="510686c0-51aa-437a-82a1-ba1b740f81c0" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	statusCode: error.errorMessage.payload.status,
+	message: error.errorMessage.payload,
+	description: error.description
+}]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+		</on-error-propagate>
+	</error-handler>
+</mule>

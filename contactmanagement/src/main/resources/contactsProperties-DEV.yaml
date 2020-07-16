@@ -1,0 +1,11 @@
+#MySQL database config
+
+contacts:
+  db.hostname: localhost
+  db.database: contacts
+  db.port: "3306"
+  db.username: ms3mgr
+  db.password: MgrContacts123#
+  
+http:
+  port: "8080"

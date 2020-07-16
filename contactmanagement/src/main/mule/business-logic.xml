@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<flow name="createContactFlow" doc:id="205514b5-d5ee-49df-96e1-89a5e7609b2e" >
+		<logger level="INFO" doc:name="Logger" doc:id="68cae0b1-f6d7-441c-85b0-cd8ee6e059bb" message="#[payload]"/>
+		<ee:transform doc:name="Transform Message" doc:id="045ad0f9-aae3-40e6-aaba-7823df56a792" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+{
+	"firstName": vars.originalPayload.Identification.FirstName,
+	"lastName": vars.originalPayload.Identification.LastName,
+	"dob": if ( !isEmpty(vars.originalPayload.Identification.DOB) and vars.originalPayload.Identification.DOB != null ) vars.originalPayload.Identification.DOB as Date {format: 'MM/dd/yyyy'} else null,
+	"gender": vars.originalPayload.Identification.Gender,
+	"title": vars.originalPayload.Identification.Title
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<db:select doc:name="Check If Contact Exists" doc:id="21ba3c6d-0596-49b0-9244-53a0d31f2a59" config-ref="Contacts_DB_Config" target="existingRecord">
+			<db:sql ><![CDATA[SELECT * from contacts.Identification
+WHERE FirstName = :firstName AND LastName = :lastName]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{"firstName" : payload.firstName,  "lastName" : payload.lastName}]]]></db:input-parameters>
+		</db:select>
+		<choice doc:name="Choice" doc:id="12601436-d3bc-44e7-bbae-3f806ed79c8e" >
+			<when expression="#[!isEmpty(vars.existingRecord) and vars.existingRecord !=null]">
+				<logger level="INFO" doc:name="Logger" doc:id="3cf8b62b-97be-4a77-a886-baea255394d6" message="Record Exists..updating"/>
+				<flow-ref doc:name="Update Existing Record" doc:id="66e4a84b-aafc-4dd1-ac30-7bae37ec81e8" name="performUpdate"/>
+			</when>
+			<otherwise>
+				<logger level="INFO" doc:name="Logger" doc:id="758a8395-05ee-4c13-995b-8346d2993835" message="Record Does Not Exists..inserting new record"/>
+				<flow-ref doc:name="Insert New Record" doc:id="67636a63-dfe5-4085-a442-ea2e99ec918e" name="performInsertFlow"/>
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="Logger" doc:id="dc128136-57af-4d6c-88f9-0cc6c80ce49c" message="Existing Create."/>
+	</flow>
+	<flow name="modifyContactFlow" doc:id="c80c28a1-d883-4205-9aff-fa4ecd5219fe" >
+		<logger level="INFO" doc:name="Logger" doc:id="4ffcb216-4383-4f93-9825-1ad44a0e4f66" message="#[payload]" />
+		<ee:transform doc:name="Transform Message" doc:id="d031810f-2e02-4cc7-a398-63f016807fd4" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+{
+	"firstName": vars.originalPayload.Identification.FirstName,
+	"lastName": vars.originalPayload.Identification.LastName,
+	"dob": if ( !isEmpty(vars.originalPayload.Identification.DOB) and vars.originalPayload.Identification.DOB != null ) vars.originalPayload.Identification.DOB as Date {format: 'MM/dd/yyyy'} else null,
+	"gender": vars.originalPayload.Identification.Gender,
+	"title": vars.originalPayload.Identification.Title
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<db:select doc:name="Check If Contact Exists To Modify" doc:id="fd9cf3a8-4e7f-4ed5-aa4c-37d5fc77a5dd" config-ref="Contacts_DB_Config" target="contactToModify" >
+			<db:sql ><![CDATA[SELECT * from contacts.Identification
+WHERE FirstName = :firstName AND LastName = :lastName]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{"firstName" : payload.firstName,  "lastName" : payload.lastName}]]]></db:input-parameters>
+		</db:select>
+		<choice doc:name="Choice" doc:id="c623188b-d4ee-4b84-87e5-caa6f716fa67" >
+			<when expression="#[!isEmpty(vars.contactToModify) and vars.contactToModify !=null]">
+				<logger level="INFO" doc:name="Logger" doc:id="26594933-9fca-4a4b-b711-571349bf86d8" message="Record Exists To Modify"/>
+				<flow-ref doc:name="Flow Reference" doc:id="d0311f8d-bf3e-4274-b287-cf5efb78dea8" name="performUpdate"/>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Logger" doc:id="a60f231c-a989-45fe-b97d-dab0fdc02587" message="No record to modify"/>
+				<ee:transform doc:name="Transform Message" doc:id="054990c5-5f34-407e-b838-15652735250e" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Status" : "No Content - HTTP 204",
+	"Message" : 'No record corresponding to criteria for modification was found'
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+	<sub-flow name="performInsertFlow" doc:id="91597aff-6205-40b3-b6f0-60daedfd8e2a" >
+		<db:insert doc:name="Insert New Identification" doc:id="9a82b84e-41c2-4fe4-918b-3988bda13cbc" config-ref="Contacts_DB_Config">
+			<db:sql><![CDATA[INSERT INTO contacts.Identification (FirstName, LastName, DOB, Gender, Title )
+values 
+(:firstName, 
+:lastName, 
+:dob,
+:gender,
+:title)]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"firstName" : payload.firstName,  "lastName" : payload.lastName, "dob" : payload.dob, "gender"  : payload.gender, "title" : payload.title}]]]></db:input-parameters>
+		</db:insert>
+		<ee:transform doc:name="Transform Message" doc:id="55a1e53e-1880-4bc8-bde1-fb16d4309024">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Status" : "Success",
+	"Message" : 'Successfully inserted ' ++ payload.affectedRows as String ++ ' rows.'
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="b21a2ba6-d3ba-470b-a383-f44c9d7ac327" message="#[payload]" />
+	</sub-flow>
+	<sub-flow name="performUpdate" doc:id="361dc617-a8bf-43f4-9b0d-e9e015706aa4" >
+		<db:update doc:name="Update Existing Contcat" doc:id="2f8362f9-7c14-4c90-942b-4d5b4e6ddf16" config-ref="Contacts_DB_Config">
+			<db:sql ><![CDATA[UPDATE contacts.Identification
+SET FirstName = :firstName, LastName = :lastName, DOB = :dob, Gender = :gender, Title = :title 
+WHERE FirstName = :firstName AND LastName = :lastName]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{"firstName" : payload.firstName,  "lastName" : payload.lastName, "dob" : payload.dob, "gender"  : payload.gender, "title" : payload.title}]]]></db:input-parameters>
+		</db:update>
+		<ee:transform doc:name="Transform Message" doc:id="fbf67337-566b-4055-9df6-eed481f06594" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Status" : "Success",
+	"Message" : 'Successfully update ' ++ payload.affectedRows as String ++ ' rows.'
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="11d4058d-e073-4887-b9aa-6099b179c3c1" message="#"/>
+	</sub-flow>
+</mule>
